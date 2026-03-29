@@ -4,8 +4,8 @@ import { useState, useRef, ChangeEvent, useEffect } from 'react';
 import 'katex/dist/katex.min.css';
 import renderMathInElement from 'katex/dist/contrib/auto-render';
 
-// Configuration
-const API_BASE_URL = 'http://localhost:8000';
+// Configuration — set NEXT_PUBLIC_API_BASE_URL in your .env file
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
