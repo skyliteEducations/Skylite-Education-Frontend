@@ -6,8 +6,8 @@ declare module 'react-katex' {
         errorColor?: string;
         renderError?: (error: Error | string) => React.ReactNode;
     }
-    export class InlineMath extends React.Component<MathProps> {}
-    export class BlockMath extends React.Component<MathProps> {}
+    export class InlineMath extends React.Component<MathProps> { }
+    export class BlockMath extends React.Component<MathProps> { }
 }
 
 declare module 'katex/dist/contrib/auto-render' {
