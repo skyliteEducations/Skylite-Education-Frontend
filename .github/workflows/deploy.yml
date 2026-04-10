@@ -62,7 +62,7 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            cd /home/administrator/apps/AIPOC/releases/main_v1/Skylite-Education-Frontend/skylite-frontend
+            cd /home/administrator/apps/AIPOC/releases/main_v1/Skylite-Education-Frontend
 
             echo "🧹 Cleaning old code..."
             git fetch origin main
