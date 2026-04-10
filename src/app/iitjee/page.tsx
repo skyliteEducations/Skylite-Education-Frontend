@@ -333,7 +333,7 @@ export default function IITJEEPipeline() {
             <header className="fixed-header" style={{ zIndex: 10 }}>
                 <div className="header-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                        <h1>AI Voice Builder Pipeline</h1>
+                        <h1>AI Voice Builder Pipeline </h1>
                         <p style={{ color: 'var(--text-light)', opacity: 0.8, marginTop: '4px' }}>
                             Extraction logic and 3-LLM Variations Workflow
                         </p>
