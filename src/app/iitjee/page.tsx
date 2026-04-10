@@ -335,7 +335,7 @@ export default function IITJEEPipeline() {
                     <div>
                         <h1>AI Voice Builder Pipeline </h1>
                         <p style={{ color: 'var(--text-light)', opacity: 0.8, marginTop: '4px' }}>
-                            Extraction logic and 3-LLM Variations Workflow
+                            Extraction logic and 3-LLM Workflow
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
