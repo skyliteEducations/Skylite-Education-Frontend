@@ -1,4 +1,3 @@
-deploy.yml
 name: Deploy Frontend (Next.js)
 
 on:
