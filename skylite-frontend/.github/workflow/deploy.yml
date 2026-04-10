@@ -1,0 +1,77 @@
+deploy.yml
+name: Deploy Frontend (Next.js)
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: AIproduction
+
+
+
+steps:
+  # -------------------------
+  # 1. CHECKOUT
+  # -------------------------
+  - name: Checkout repo
+    uses: actions/checkout@v4
+  # -------------------------
+  # 2. SETUP NODE
+  # -------------------------
+  - name: Setup Node
+    uses: actions/setup-node@v4
+    with:
+      node-version: "20"
+  # -------------------------
+  # 3. BUILD APP (optional)
+  # -------------------------
+  - name: Build Next.js app
+    env:
+      NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+    run: |
+      npm install
+      npm run build
+  # -------------------------
+  # 4. SETUP SSH
+  # -------------------------
+  - name: Setup SSH
+    env:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VPS_IP: ${{ secrets.VPS_IP }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+    run: |
+      mkdir -p ~/.ssh
+      echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+      chmod 600 ~/.ssh/id_ed25519
+      ssh-keyscan -H -p $VPS_PORT $VPS_IP >> ~/.ssh/known_hosts
+  # -------------------------
+  # 5. DEPLOY & RESTART
+  # -------------------------
+  - name: Deploy & Restart
+    env:
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_IP: ${{ secrets.VPS_IP }}
+    run: |
+      ssh -i ~/.ssh/id_ed25519 -p $VPS_PORT $VPS_USER@$VPS_IP << 'EOF'
+        set -e
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+        cd /home/administrator/apps/AIPOC/releases/main_v1/Skylite-Education-Frontend/skylite-frontend
+        echo "🧹 Cleaning old code..."
+        git fetch origin main
+        git reset --hard origin/main
+        git clean -fd
+        echo "🗑️ Removing old build..."
+        rm -rf .next node_modules   # ← YE ADD KARO
+        echo "📦 Installing deps..."
+        npm install
+        echo "🏗️ Building app..."
+        npm run build
+        echo "♻️ Restarting app..."
+        pm2 restart aipoc || pm2 start npm --name "aipoc" -- start
+        pm2 save
+      EOF
