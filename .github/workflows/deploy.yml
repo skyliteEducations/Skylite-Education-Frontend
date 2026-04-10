@@ -25,17 +25,7 @@ jobs:
           node-version: "20"
 
       # -------------------------
-      # 3. BUILD APP (optional)
-      # -------------------------
-      - name: Build Next.js app
-        env:
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-        run: |
-          npm install
-          npm run build
-
-      # -------------------------
-      # 4. SETUP SSH
+      # 3. SETUP SSH
       # -------------------------
       - name: Setup SSH
         env:
@@ -49,7 +39,7 @@ jobs:
           ssh-keyscan -H -p $VPS_PORT $VPS_IP >> ~/.ssh/known_hosts
 
       # -------------------------
-      # 5. DEPLOY & RESTART
+      # 4. DEPLOY & RESTART
       # -------------------------
       - name: Deploy & Restart
         env:
@@ -58,10 +48,10 @@ jobs:
           VPS_IP: ${{ secrets.VPS_IP }}
           NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 -p $VPS_PORT $VPS_USER@$VPS_IP << 'EOF'
+          ssh -i ~/.ssh/id_ed25519 -p $VPS_PORT $VPS_USER@$VPS_IP << EOF
             set -e
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            export NVM_DIR="\$HOME/.nvm"
+            [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
 
             cd /home/administrator/apps/AIPOC/releases/main_v1/Skylite-Education-Frontend
 
@@ -69,6 +59,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             git clean -fd
+
+            echo "📝 Creating .env file..."
+            echo "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}" > .env
 
             echo "🗑️ Removing old build..."
             rm -rf .next node_modules
@@ -82,4 +75,6 @@ jobs:
             echo "♻️ Restarting app..."
             pm2 restart aipoc || pm2 start npm --name "aipoc" -- start
             pm2 save
+
+            echo "✅ Deployment successful"
           EOF
