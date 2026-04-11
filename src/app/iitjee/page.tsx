@@ -388,10 +388,26 @@ function ExtractionPipeline() {
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
     const [result, setResult] = useState<any>(null);
     const [verifiedIndexes, setVerifiedIndexes] = useState<number[]>([]);
+    const [taxonomyChapters, setTaxonomyChapters] = useState<string[]>([]);
 
     const currentPage = bookPages[currentBookPageIndex];
 
     const pollingIntervalRef = useRef<any>(null);
+
+    useEffect(() => {
+        const fetchTaxonomy = async () => {
+             try {
+                const res = await fetch(`${API_BASE_URL}/api/v1/question-builder/taxonomy-data/list`);
+                const data = await res.json();
+                if (data.chapters) {
+                   setTaxonomyChapters(data.chapters);
+                }
+             } catch (e) {
+                console.error("Failed to fetch taxonomy chapters", e);
+             }
+        };
+        fetchTaxonomy();
+    }, []);
 
     useEffect(() => {
         if (!bookId || !currentPage?.name) return;
@@ -633,7 +649,15 @@ function ExtractionPipeline() {
                                     </div>
                                     <div className="editor-group" style={{ margin: 0 }}>
                                         <label className="editor-label">Chapter</label>
-                                        <input className="edit-input" placeholder="e.g. Light" value={chapterName} onChange={e => setChapterName(e.target.value)} />
+                                        <select 
+                                            className="edit-input" 
+                                            value={chapterName} 
+                                            onChange={e => setChapterName(e.target.value)}
+                                            style={{ padding: '8px', borderRadius: '4px', background: '#1a1a1a', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', width: '100%' }}
+                                        >
+                                            <option value="" disabled>-- Select Taxonomy Chapter --</option>
+                                            {taxonomyChapters.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
                                     </div>
                                 </div>
                                 <p style={{ color: 'var(--text-light)', marginBottom: '20px', marginTop: '20px' }}>
