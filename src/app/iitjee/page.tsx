@@ -4,6 +4,7 @@ import { useState, useRef, ChangeEvent, useEffect, useCallback, memo } from 'rea
 import 'katex/dist/katex.min.css';
 import renderMathInElement from 'katex/dist/contrib/auto-render';
 import QuestionBuilder from './components/QuestionBuilder';
+import DatabaseViewer from './components/DatabaseViewer';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -326,7 +327,7 @@ const QuestionItemEditor = memo(function QuestionItemEditor({
 
 
 export default function IITJEEPipeline() {
-    const [activeModule, setActiveModule] = useState<'extraction' | 'builder'>('extraction');
+    const [activeModule, setActiveModule] = useState<'extraction' | 'builder' | 'database'>('extraction');
 
     return (
         <main className="dashboard-container">
@@ -351,12 +352,24 @@ export default function IITJEEPipeline() {
                         >
                             🤖 3-LLM Builder
                         </button>
+                        <button
+                            style={{ background: activeModule === 'database' ? 'var(--primary)' : 'rgba(255,255,255,0.1)', color: activeModule === 'database' ? '#000' : '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', border: 'none', fontWeight: 'bold' }}
+                            onClick={() => setActiveModule('database')}
+                        >
+                            📊 Database Explorer
+                        </button>
                     </div>
                 </div>
             </header>
 
             <div className="content-scroll" style={{ paddingTop: '10px' }}>
-                {activeModule === 'extraction' ? <ExtractionPipeline /> : <QuestionBuilder />}
+                {activeModule === 'extraction' ? (
+                    <ExtractionPipeline />
+                ) : activeModule === 'builder' ? (
+                    <QuestionBuilder />
+                ) : (
+                    <DatabaseViewer />
+                )}
             </div>
         </main>
     );
