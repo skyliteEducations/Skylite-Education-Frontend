@@ -162,10 +162,10 @@ export default function QuestionBuilder() {
 
     // Check for existing results when page changes
     useEffect(() => {
+        setSyncStatus('idle');
         if (!selectedBook || !selectedPage) { 
             setResults(null); 
             setReferenceData(null);
-            setSyncStatus('idle');
             return; 
         }
         
@@ -204,6 +204,7 @@ export default function QuestionBuilder() {
         if (!selectedBook || !selectedPage) return;
 
         setStatus('building');
+        setSyncStatus('idle');
         setMessage('Synthesizing biological context. Starting AI background pipeline...');
         setResults((prev: any) => ({ reference_content: prev?.reference_content }));
 
