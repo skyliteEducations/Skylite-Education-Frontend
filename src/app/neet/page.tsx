@@ -136,7 +136,7 @@ const ContentBlock = memo(function ContentBlock({
     return (
         <div className={`bio-content-card ${isSelected ? 'selected' : ''}`} onClick={() => onToggle(block.index)}>
             <div className="card-selection-area">
-                <input type="checkbox" checked={isSelected} onChange={() => onToggle(block.index)} />
+                <input type="checkbox" checked={isSelected} readOnly />
             </div>
             
             <div className="card-flag-type">{block.type}</div>
@@ -402,11 +402,11 @@ export default function NEETBiologyPipeline() {
         }
     };
 
-    const toggleSelection = (idx: number) => {
+    const toggleSelection = useCallback((idx: number) => {
         setSelectedIndices(prev => 
             prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
         );
-    };
+    }, []);
 
     const downloadJson = () => {
         if (!result) return;
