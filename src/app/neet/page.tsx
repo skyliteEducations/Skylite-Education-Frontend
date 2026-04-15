@@ -27,6 +27,7 @@ interface BiologyResult {
     full_text: string;
     blocks: BiologyBlock[];
     diagrams: BiologyDiagram[];
+    topics?: string[];
     metadata: {
         chapter?: string;
         topic?: string;
@@ -141,7 +142,7 @@ const ContentBlock = memo(function ContentBlock({
             
             <div className="card-flag-type">{block.type}</div>
             
-            {block.type === 'Heading' ? (
+            {['Heading', 'SectionHeader'].includes(block.type) ? (
                 <div className="bio-h3">
                     <MathText text={block.content} />
                 </div>
@@ -260,7 +261,7 @@ export default function NEETBiologyPipeline() {
                         setStatus('completed');
                         setMessage('Data retrieved from server repository.');
                         setChapterName(data.metadata.chapter || '');
-                        setTopicName(data.metadata.topic || '');
+                        // setTopicName(data.metadata.topic || ''); // User wants to remove manual entry
                         // Auto select all blocks by default
                         setSelectedIndices(data.blocks.map((b: any) => b.index));
                     }
@@ -339,9 +340,8 @@ export default function NEETBiologyPipeline() {
     };
 
     const handleProcessPage = async (pageName: string) => {
-        if (!bookId || !chapterName || !topicName) {
-            alert("Please classify the Chapter and Topic in the right panel before processing.");
-            // Focus on input if possible
+        if (!bookId || !chapterName) {
+            alert("Please classify the Chapter in the right panel before processing.");
             return;
         }
         
@@ -389,7 +389,8 @@ export default function NEETBiologyPipeline() {
                     selected_blocks: selectedBlocks,
                     chapter_name: chapterName,
                     topic_name: topicName,
-                    pyq_chapter: pyqChapter
+                    pyq_chapter: pyqChapter,
+                    topics: result.topics
                 })
             });
             const data = await res.json();
@@ -579,16 +580,12 @@ export default function NEETBiologyPipeline() {
                                     <label>GENUS / CHAPTER</label>
                                     <input placeholder="e.g. Biological Classification" value={chapterName} onChange={e => setChapterName(e.target.value)} />
                                 </div>
-                                <div className="bio-input-group">
-                                    <label>SPECIES / TOPIC</label>
-                                    <input placeholder="e.g. Protista Kingdom" value={topicName} onChange={e => setTopicName(e.target.value)} />
-                                </div>
                             </div>
 
                             <button 
                                 className="bio-execute-btn"
                                 onClick={() => currentPage && handleProcessPage(currentPage.name)}
-                                disabled={status === 'processing' || !chapterName || !topicName || !currentPage}
+                                disabled={status === 'processing' || !chapterName || !currentPage}
                             >
                                 {status === 'processing' ? 'EXTRACTING BIOLOGY...' : (result ? 'RETRAIN AI ON PAGE' : 'EXECUTE AI CLASSIFICATION')}
                             </button>
@@ -651,7 +648,7 @@ export default function NEETBiologyPipeline() {
                                     <div className="bio-empty-prompt">
                                         <div className="prompt-svg">⌬</div>
                                         <p>AWAITING EXECUTION COMMAND</p>
-                                        <small>CLASSIFY THE CHAPTER & TOPIC TO BEGIN NEURAL EXTRACTION</small>
+                                        <small>CLASSIFY THE CHAPTER TO BEGIN NEURAL EXTRACTION</small>
                                     </div>
                                 )}
 
