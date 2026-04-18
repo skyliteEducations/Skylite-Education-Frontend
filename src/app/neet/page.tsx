@@ -5,6 +5,8 @@ import Link from 'next/link';
 import 'katex/dist/katex.min.css';
 import renderMathInElement from 'katex/dist/contrib/auto-render';
 import QuestionBuilder from './components/QuestionBuilder';
+import PipelineStats from './components/PipelineStats';
+
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -178,7 +180,8 @@ const ContentBlock = memo(function ContentBlock({
 });
 
 export default function NEETBiologyPipeline() {
-    const [activeTab, setActiveTab] = useState<'datalab' | 'builder'>('datalab');
+    const [activeTab, setActiveTab] = useState<'datalab' | 'builder' | 'stats'>('datalab');
+
     const [file, setFile] = useState<File | null>(null);
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -447,7 +450,11 @@ export default function NEETBiologyPipeline() {
                         <button className={activeTab === 'builder' ? 'active' : ''} onClick={() => setActiveTab('builder')}>
                             <span className="tab-icon">🧬</span> QUESTION BUILDER
                         </button>
+                        <button className={activeTab === 'stats' ? 'active' : ''} onClick={() => setActiveTab('stats')}>
+                            <span className="tab-icon">📊</span> PIPELINE ANALYTICS
+                        </button>
                     </div>
+
 
                     {bookId && activeTab === 'datalab' && (
                         <div className="masthead-meta">
@@ -466,7 +473,10 @@ export default function NEETBiologyPipeline() {
             <section className="bio-viewport">
                 {activeTab === 'builder' ? (
                     <QuestionBuilder />
+                ) : activeTab === 'stats' ? (
+                    <PipelineStats />
                 ) : !bookId ? (
+
                     <div className="bio-init-card">
                         <div className="init-icon-frame">
                             <div className="init-icon">🧬</div>
