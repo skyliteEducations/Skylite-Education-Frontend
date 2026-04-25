@@ -304,7 +304,7 @@ export default function InorganicChemistryPipeline() {
 
             <section className="chem-viewport">
                 {activeTab === 'builder' ? (
-                    <QuestionBuilder />
+                    <QuestionBuilder initialBookId={bookId || ''} initialPageName={currentPage?.name || ''} />
                 ) : !bookId ? (
                     <div className="chem-init-card">
                         <div className="init-icon-frame">

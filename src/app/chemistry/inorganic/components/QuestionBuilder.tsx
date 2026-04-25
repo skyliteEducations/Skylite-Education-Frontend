@@ -43,33 +43,81 @@ const MathText = memo(function MathText({ text }: { text: string }) {
 });
 
 // --- Terminal Log Viewer ---
-const TerminalLog = memo(function TerminalLog({ log }: { log: string }) {
+const TerminalLog = memo(function TerminalLog({ bookId, pageName }: { bookId: string, pageName: string }) {
+    const [logs, setLogs] = useState<string>('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (!bookId || !pageName) return;
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}${API_PREFIX}/book/${bookId}/${pageName}/pipeline/log`);
+                if (res.ok) {
+                    const text = await res.text();
+                    setLogs(text);
+                }
+            } catch (e) {}
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [bookId, pageName]);
+
+    useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }, [log]);
+    }, [logs]);
 
     return (
-        <div className="chem-terminal">
-            <div className="terminal-top">
-                <span className="dot r"></span><span className="dot y"></span><span className="dot g"></span>
-                <span className="t-label">pipeline.log — inorganic-engine-02</span>
+        <div style={{ background: '#000', borderRadius: '12px', border: '1px solid #1e293b', overflow: 'hidden', fontFamily: 'monospace', marginTop: '10px' }}>
+            <div style={{ background: '#1e293b', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff5f56' }}></span>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffbd2e' }}></span>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#27c93f' }}></span>
+                <span style={{ fontSize: '9px', color: '#94a3b8', marginLeft: '10px', fontWeight: '700' }}>pipeline.log — inorganic-engine-04</span>
             </div>
-            <div className="terminal-cnt" ref={scrollRef}>
-                <pre>{log || '> Initializing chemical pipeline...\n> Awaiting log stream...'}</pre>
+            <div ref={scrollRef} style={{ padding: '15px', height: '150px', overflowY: 'auto', fontSize: '11px', color: '#10b981' }}>
+                <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{logs || '> Establishing AI socket...\n> Waiting for build logs...'}</pre>
             </div>
         </div>
     );
 });
 
-export default function QuestionBuilder() {
-    const [selectedBook, setSelectedBook] = useState('');
-    const [selectedPage, setSelectedPage] = useState('');
+const COST_CONFIG: any = {
+    'gpt-5.4': { input: 2.50, output: 15.00 },
+    'gpt-4o': { input: 2.50, output: 15.00 },
+    'claude-sonnet-4-6': { input: 3.00, output: 15.00 }
+};
+
+const USD_TO_INR = 93;
+
+const calculateCostRaw = (usage: any, model: string) => {
+    if (!usage) return 0;
+    const config = COST_CONFIG[model] || COST_CONFIG['gpt-5.4'];
+    const pTokens = (usage.prompt_tokens || usage.input_tokens || 0);
+    const cTokens = (usage.completion_tokens || usage.output_tokens || 0);
+    
+    const costUsd = ((pTokens / 1000000) * config.input) + ((cTokens / 1000000) * config.output);
+    return (costUsd * USD_TO_INR);
+};
+
+const formatINR = (usage: any, model: string) => {
+    return `₹${calculateCostRaw(usage, model).toFixed(2)}`;
+};
+
+const getTotalTokens = (usage: any) => {
+    if (!usage) return 0;
+    return (usage.prompt_tokens || usage.input_tokens || 0) + (usage.completion_tokens || usage.output_tokens || 0);
+};
+
+export default function QuestionBuilder({ initialBookId = '', initialPageName = '' }: { initialBookId?: string, initialPageName?: string }) {
+    const [booksList, setBooksList] = useState<string[]>([]);
+    const [selectedBook, setSelectedBook] = useState(initialBookId);
+    const [pagesList, setPagesList] = useState<string[]>([]);
+    const [selectedPage, setSelectedPage] = useState(initialPageName);
     
     const [status, setStatus] = useState<'idle' | 'building' | 'completed' | 'failed'>('idle');
     const [message, setMessage] = useState('');
     const [results, setResults] = useState<any>(null);
+    const [referenceData, setReferenceData] = useState<any>(null);
+    const [viewTab, setViewTab] = useState<'final' | 'llm1' | 'llm2' | 'stats'>('final');
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'failed'>('idle');
     const [taxonomyList, setTaxonomyList] = useState<string[]>([]);
     const [pyqChapter, setPyqChapter] = useState('');
@@ -77,6 +125,17 @@ export default function QuestionBuilder() {
     const pollInterval = useRef<any>(null);
 
     useEffect(() => {
+        const fetchBooks = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}${API_PREFIX}/pipeline/books`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setBooksList(data.books || []);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
         const fetchTaxonomy = async () => {
             try {
                 const res = await fetch(`${API_BASE_URL}${API_PREFIX}/taxonomy-list`);
@@ -88,19 +147,73 @@ export default function QuestionBuilder() {
                 console.error(e);
             }
         };
+        fetchBooks();
         fetchTaxonomy();
     }, []);
 
-    const startBuild = async () => {
-        if (!selectedBook || !selectedPage) {
-            alert("Please specify Book ID and Page Name (e.g. from extraction tab)");
-            return;
+    useEffect(() => {
+        if (!selectedBook) { setPagesList([]); setSelectedPage(''); return; }
+        const fetchPages = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}${API_PREFIX}/pipeline/${selectedBook}/pages`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setPagesList(data.pages || []);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchPages();
+    }, [selectedBook]);
+
+    // Check for existing results when page changes
+    useEffect(() => {
+        setSyncStatus('idle');
+        if (!selectedBook || !selectedPage) { 
+            setResults(null); 
+            setReferenceData(null);
+            return; 
         }
+        
+        const fetchInitialState = async () => {
+            try {
+                // 1. Fetch reference content independently
+                const refRes = await fetch(`${API_BASE_URL}${API_PREFIX}/book/${selectedBook}/${selectedPage}/pipeline/reference`);
+                if (refRes.ok) {
+                    const refJson = await refRes.json();
+                    setReferenceData(refJson);
+                }
+
+                // 2. Separately check for pipeline outputs
+                const res = await fetch(`${API_BASE_URL}${API_PREFIX}/book/${selectedBook}/${selectedPage}/pipeline-results`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.final || data.llm1) {
+                        setResults(data);
+                        setStatus('completed');
+                    } else {
+                        setResults(null);
+                        setStatus('idle');
+                    }
+                } else {
+                    setResults(null);
+                    setStatus('idle');
+                }
+            } catch (e) {
+                setStatus('idle');
+            }
+        };
+        fetchInitialState();
+    }, [selectedBook, selectedPage]);
+
+    const startBuild = async () => {
+        if (!selectedBook || !selectedPage) return;
 
         setStatus('building');
         setSyncStatus('idle');
-        setMessage('Synthesizing inorganic chemistry variations. Starting 2-LLM pipeline...');
-        setResults(null);
+        setMessage('Synthesizing inorganic context. Starting AI background pipeline...');
+        setResults((prev: any) => ({ reference: prev?.reference }));
 
         try {
             const res = await fetch(`${API_BASE_URL}${API_PREFIX}/book/${selectedBook}/${selectedPage}/build-questions`, {
@@ -108,31 +221,57 @@ export default function QuestionBuilder() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pyq_chapter: pyqChapter })
             });
+            const data = await res.json();
             
-            if (!res.ok) throw new Error("Failed to start pipeline");
-            
-            pollResults();
+            // Start polling as the backend processes in the background
+            pollResourcePaths();
+            setMessage(data.message || 'Pipeline started. Monitoring generation progress...');
         } catch (e: any) {
             setStatus('failed');
             setMessage(e.message);
         }
     };
 
-    const pollResults = () => {
+    const pollResourcePaths = () => {
         if (pollInterval.current) clearInterval(pollInterval.current);
         
+        let attempts = 0;
         pollInterval.current = setInterval(async () => {
+            attempts++;
+            if (attempts > 150) { 
+                clearInterval(pollInterval.current);
+                setStatus('failed');
+                setMessage('Pipeline timeout.');
+                return;
+            }
+
             try {
                 const res = await fetch(`${API_BASE_URL}${API_PREFIX}/book/${selectedBook}/${selectedPage}/pipeline-results`);
                 if (res.ok) {
                     const data = await res.json();
-                    setResults(data);
+                    
+                    const finalData = data.final;
+                    const reference = data.reference;
 
-                    if (data.final) {
+                    if (reference && !referenceData) setReferenceData(reference);
+
+                    setResults((prev: any) => ({
+                        ...prev,
+                        llm1: data.llm1 || prev?.llm1,
+                        llm2: data.llm2 || prev?.llm2,
+                        final: finalData || prev?.final,
+                        log: data.log || prev?.log
+                    }));
+
+                    if (finalData) {
                         clearInterval(pollInterval.current);
                         pollInterval.current = null;
                         setStatus('completed');
                         setMessage('Inorganic Question Pipeline completed successfully.');
+                    } else if (data.llm2) {
+                        setMessage('Validator (LLM2) completed. Synthesizing final response...');
+                    } else if (data.llm1) {
+                        setMessage('Generator (LLM1) completed. Validator (LLM2) is now processing...');
                     }
                 }
             } catch (e) {}
@@ -148,309 +287,261 @@ export default function QuestionBuilder() {
             });
             if (res.ok) {
                 setSyncStatus('synced');
-                setMessage('Artifacts synchronized to iitjee_chemistry collection.');
+                setMessage('Successfully synchronized all pipeline artifacts to MongoDB.');
             } else {
                 setSyncStatus('failed');
+                setMessage('Database synchronization failed.');
             }
         } catch (e) {
             setSyncStatus('failed');
+            setMessage('Network error during database synchronization.');
         }
     };
 
-    const QuestionCard = ({ q, level }: { q: any, level: string }) => {
-        if (!q) return null;
-        const isVerified = q.verdict === 'verified';
+    const QuestionCard = ({ q, level, validator, phase }: { q: any, level: string, validator?: any, phase?: string }) => {
+        const baseContent = (phase === 'Validator' && results?.llm1?.[level]) ? results.llm1[level] : q;
+        if (!baseContent) return null;
+        
+        const isVerified = phase ? true : (q.verdict === 'verified' || q.verdict === 'correct');
 
         return (
-            <div className="chem-q-card">
-                <div className="q-card-header">
-                    <span className="lvl-label">{level.toUpperCase()} VARIATION</span>
-                    <span className={`verdict-badge ${isVerified ? 'verified' : 'flagged'}`}>
-                        {isVerified ? '✓ VERIFIED' : '⚠ REVIEW'}
-                    </span>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${isVerified ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        {level} VARIATION <span style={{ opacity: 0.6 }}>{phase ? `[${phase}]` : ''}</span>
+                    </div>
+                    
+                    {!phase && (
+                        <div style={{ padding: '6px 12px', borderRadius: '99px', fontSize: '10px', fontWeight: 'bold', background: isVerified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isVerified ? '#10b981' : '#ef4444', border: `1px solid ${isVerified ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
+                            {isVerified ? '✓ VERIFIED' : '⚠ ATTENTION'}
+                        </div>
+                    )}
                 </div>
                 
-                <div className="q-text">
-                    <MathText text={q.question} />
+                <div style={{ fontSize: '16px', lineHeight: '1.6', color: '#f1f5f9', marginBottom: '24px', fontWeight: '500' }}>
+                    <MathText text={baseContent.question || q.question} />
                 </div>
                 
-                <div className="options-grid">
-                    {Object.entries(q.options || {}).map(([key, val]: any) => (
-                        <div key={key} className={`opt-item ${q.correct_option === key ? 'correct' : ''}`}>
-                            <div className="opt-key">{key}</div>
-                            <div className="opt-val"><MathText text={val} /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                    {Object.entries(baseContent.options || q.options || {}).map(([key, val]: any) => (
+                        <div key={key} style={{ display: 'flex', gap: '12px', background: (baseContent.correct_option || q.correct_option) === key ? 'rgba(16, 185, 129, 0.05)' : 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '8px', border: `1px solid ${(baseContent.correct_option || q.correct_option) === key ? '#10b981' : 'rgba(255,255,255,0.05)'}` }}>
+                            <div style={{ background: (baseContent.correct_option || q.correct_option) === key ? '#10b981' : 'rgba(255,255,255,0.1)', color: (baseContent.correct_option || q.correct_option) === key ? '#000' : '#fff', width: '28px', height: '28px', minWidth: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}>{key}</div>
+                            <div style={{ fontSize: '14px', color: '#cbd5e1', paddingTop: '4px' }}><MathText text={val} /></div>
                         </div>
                     ))}
                 </div>
 
-                <div className="q-meta">
-                    CORRECT OPTION: <span className="correct-val">{q.correct_option}</span>
+                <div style={{ marginBottom: '24px', fontSize: '12px', fontWeight: 'bold', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', display: 'flex', alignItems: 'center' }}>
+                    CORRECT OPTION: <span style={{ marginLeft: '10px', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>{baseContent.correct_option || q.correct_option}</span>
                 </div>
 
-                <div className="q-solution">
-                    <label>EXPLANATION & SOLUTION</label>
-                    <div className="sol-text"><MathText text={q.solution || "No explanation provided."} /></div>
+                <div style={{ background: '#000', padding: '20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: (validator?.explanation || q.solution) ? '16px' : '0' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#10b981', letterSpacing: '1px', marginBottom: '10px', textTransform: 'uppercase' }}>EXPLANATION & SOLUTION ({phase || 'FINAL'})</div>
+                    <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#94a3b8' }}><MathText text={q.solution} /></div>
                 </div>
+
+                {validator?.explanation && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#ef4444', letterSpacing: '1px', marginBottom: '10px', textTransform: 'uppercase' }}>VALIDATOR ANALYSIS</div>
+                        <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#fca5a5' }}><MathText text={validator.explanation} /></div>
+                    </div>
+                )}
             </div>
         );
     };
 
+    const hasResults = !!results;
+    
     return (
-        <div className="chem-builder-workspace">
-            <div className="builder-sidebar">
-                <div className="sidebar-group">
-                    <label>BOOK IDENTIFIER</label>
-                    <input 
-                        placeholder="e.g. Chemistry_NCERT_P1" 
-                        value={selectedBook} 
-                        onChange={e => setSelectedBook(e.target.value)} 
-                    />
+        <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: 'calc(100vh - 120px)', background: '#020617', color: '#fff', overflow: 'hidden' }}>
+            
+            {/* LEFT PANEL */}
+            <div style={{ borderRight: '1px solid rgba(255,255,255,0.05)', background: 'rgba(15, 23, 42, 0.4)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1px' }}>Book Identifier</label>
+                    <select value={selectedBook} onChange={e => setSelectedBook(e.target.value)} style={{ padding: '12px 14px', background: '#000', border: '1px solid #1e293b', color: '#fff', borderRadius: '10px', fontSize: '13px', outline: 'none', fontWeight: 'bold' }}>
+                        <option value="">-- Verified Books --</option>
+                        {booksList.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
                 </div>
 
-                <div className="sidebar-group">
-                    <label>PAGE NAME</label>
-                    <input 
-                        placeholder="e.g. page_001.jpg" 
-                        value={selectedPage} 
-                        onChange={e => setSelectedPage(e.target.value)} 
-                    />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1px' }}>Select Resource Page</label>
+                    <select value={selectedPage} onChange={e => setSelectedPage(e.target.value)} disabled={!selectedBook} style={{ padding: '12px 14px', background: '#000', border: '1px solid #1e293b', color: '#fff', borderRadius: '10px', fontSize: '13px', outline: 'none', fontWeight: 'bold', opacity: !selectedBook ? 0.4 : 1 }}>
+                        <option value="">-- Saved Pages --</option>
+                        {pagesList.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
                 </div>
 
-                <div className="sidebar-group">
-                    <label>EMULATE PYQ DIFFICULTY</label>
-                    <select value={pyqChapter} onChange={e => setPyqChapter(e.target.value)}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 'bold', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '1px' }}>Emulate Difficulty (PYQ Chapter)</label>
+                    <select value={pyqChapter} onChange={e => setPyqChapter(e.target.value)} style={{ padding: '12px 14px', background: '#000', border: '1px solid #1e293b', color: '#fff', borderRadius: '10px', fontSize: '13px', outline: 'none', fontWeight: 'bold' }}>
                         <option value="">-- Select Chapter --</option>
                         {taxonomyList.map(chap => <option key={chap} value={chap}>{chap}</option>)}
                     </select>
                 </div>
 
-                <TerminalLog log={results?.log || ''} />
+                <div style={{ display: 'flex', flexDirection: 'column', background: '#000', flex: 1, borderRadius: '12px', border: '1px solid #1e293b', overflow: 'hidden', minHeight: '200px' }}>
+                    <div style={{ background: '#1e293b', padding: '12px 16px', fontSize: '10px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Reference Content View</div>
+                    <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+                        {referenceData?.selected_blocks ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                {referenceData.selected_blocks.map((block: any, idx: number) => (
+                                    <div key={idx} style={{ paddingBottom: '20px', borderBottom: '1px dashed rgba(255,255,255,0.08)' }}>
+                                        <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', display: 'inline-block', padding: '4px 8px', borderRadius: '6px', marginBottom: '10px', letterSpacing: '1px' }}>{block.type?.toUpperCase()}</div>
+                                        <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#cbd5e1' }}><MathText text={block.content} /></div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', opacity: 0.4, marginTop: '40px', fontSize: '13px' }}>Awaiting valid content origin.</div>
+                        )}
+                    </div>
+                </div>
+
+                <TerminalLog bookId={selectedBook} pageName={selectedPage} />
 
                 <button 
-                    className="build-trigger-btn"
                     onClick={startBuild} 
-                    disabled={status === 'building'}
+                    disabled={!selectedPage || status === 'building'} 
+                    style={{ background: '#6366f1', color: '#fff', border: 'none', padding: '18px', borderRadius: '12px', fontWeight: 'bold', fontSize: '14px', cursor: (!selectedPage || status === 'building') ? 'not-allowed' : 'pointer', opacity: (!selectedPage || status === 'building') ? 0.5 : 1, transition: 'all 0.2s', marginTop: '10px', boxShadow: '0 4px 20px rgba(99, 102, 241, 0.2)' }}
                 >
-                    {status === 'building' ? 'PIPELINE ACTIVE...' : '🚀 DEPLOY 2-LLM BUILDER'}
+                    {status === 'building' ? 'ASSEMBLING PIPELINE...' : '🚀 START INORGANIC BUILD'}
                 </button>
             </div>
 
-            <div className="builder-main">
-                <div className="main-header">
-                    <h2>Validated Pipeline Outcomes</h2>
+            {/* RIGHT PANEL */}
+            <div style={{ display: 'flex', flexDirection: 'column', background: '#000', overflow: 'hidden' }}>
+                <div style={{ padding: '0 30px', background: '#0f172a', borderBottom: '1px solid #1e293b', display: 'flex', gap: '30px' }}>
+                    <button onClick={() => setViewTab('final')} style={{ background: 'none', border: 'none', padding: '24px 0', borderBottom: `2px solid ${viewTab === 'final' ? '#10b981' : 'transparent'}`, color: viewTab === 'final' ? '#10b981' : '#475569', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}>Final Validated Outcomes</button>
+                    <button onClick={() => setViewTab('llm1')} style={{ background: 'none', border: 'none', padding: '24px 0', borderBottom: `2px solid ${viewTab === 'llm1' ? '#3b82f6' : 'transparent'}`, color: viewTab === 'llm1' ? '#3b82f6' : '#475569', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}>L1 Generative Array</button>
+                    <button onClick={() => setViewTab('llm2')} style={{ background: 'none', border: 'none', padding: '24px 0', borderBottom: `2px solid ${viewTab === 'llm2' ? '#a855f7' : 'transparent'}`, color: viewTab === 'llm2' ? '#a855f7' : '#475569', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}>L2 Validation Array</button>
+                    <button onClick={() => setViewTab('stats')} style={{ background: 'none', border: 'none', padding: '24px 0', borderBottom: `2px solid ${viewTab === 'stats' ? '#f59e0b' : 'transparent'}`, color: viewTab === 'stats' ? '#f59e0b' : '#475569', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}>Cost Metrics & Analytics</button>
+                    
                     {status === 'completed' && (
                         <button 
-                            className={`sync-btn ${syncStatus}`}
                             onClick={saveToMongo}
                             disabled={syncStatus === 'syncing' || syncStatus === 'synced'}
+                            style={{ 
+                                marginLeft: 'auto', alignSelf: 'center', padding: '10px 20px', borderRadius: '8px', 
+                                background: syncStatus === 'synced' ? 'rgba(16, 185, 129, 0.1)' : '#10b981',
+                                color: syncStatus === 'synced' ? '#10b981' : '#000',
+                                fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px',
+                                cursor: (syncStatus === 'syncing' || syncStatus === 'synced') ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.3s', border: syncStatus === 'synced' ? '1px solid #10b981' : 'none'
+                            }}
                         >
-                            {syncStatus === 'syncing' ? 'SYNCING...' : syncStatus === 'synced' ? '✓ COMMITTED' : '📤 SYNC TO DB'}
+                            {syncStatus === 'syncing' ? '⌛ SYNCING...' : syncStatus === 'synced' ? '✓ COMMITTED TO MONGO' : '📤 SYNC TO DATABASE'}
                         </button>
                     )}
                 </div>
 
-                <div className="main-content">
-                    {status === 'building' && !results?.final && (
-                        <div className="build-loading">
-                            <div className="chem-spinner"></div>
-                            <p>Synthesizing Inorganic variations...</p>
-                            <span>Generator is creating questions. Validator will follow.</span>
+                <div style={{ padding: '40px', overflowY: 'auto', flex: 1, position: 'relative' }}>
+                    {status === 'building' && !hasResults && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '20px' }}>
+                            <div style={{ width: '60px', height: '60px', border: '4px solid rgba(99, 102, 241, 0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>Synthesizing Inorganic Content Pipeline...</p>
+                            <span style={{ fontSize: '13px', color: '#6366f1' }}>{message}</span>
                         </div>
                     )}
 
-                    {results?.final ? (
-                        <div className="questions-stack">
-                            {['easy', 'medium', 'hard'].map(lvl => (
-                                <QuestionCard key={lvl} level={lvl} q={results.final[lvl]} />
-                            ))}
+                    {status === 'idle' && !hasResults && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.3 }}>
+                            <div style={{ fontSize: '48px', marginBottom: '20px' }}>🧪</div>
+                            <p style={{ fontSize: '16px' }}>Select an Origin Page & Start the Build Pipeline.</p>
                         </div>
-                    ) : status === 'idle' && (
-                        <div className="idle-state">
-                            <p>Specify context origins and start the build pipeline.</p>
+                    )}
+
+                    {hasResults && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', maxWidth: '850px', margin: '0 auto' }}>
+                            {viewTab === 'final' && results.final && (
+                                <>
+                                    {['easy', 'medium', 'hard'].map((lvl) => (
+                                        <QuestionCard key={lvl} level={lvl} q={results.final[lvl]} />
+                                    ))}
+                                </>
+                            )}
+
+                            {viewTab === 'llm1' && results.llm1 && (
+                                <>
+                                    <h4 style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '2px', color: '#3b82f6', textAlign: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '15px' }}>GENERATOR PIPELINE (LLM 1)</h4>
+                                    {['easy', 'medium', 'hard'].map((lvl) => (
+                                        <QuestionCard key={lvl} level={lvl} q={results.llm1[lvl]} phase="Generator" />
+                                    ))}
+                                </>
+                            )}
+
+                            {viewTab === 'llm2' && results.llm2 && (
+                                <>
+                                    <h4 style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '2px', color: '#a855f7', textAlign: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '15px' }}>VALIDATION PIPELINE (LLM 2)</h4>
+                                    {['easy', 'medium', 'hard'].map((lvl) => (
+                                        <QuestionCard key={lvl} level={lvl} q={results.llm2[lvl]} validator={results.llm2[lvl]} phase="Validator" />
+                                    ))}
+                                </>
+                            )}
+
+                            {viewTab === 'stats' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+                                        <div style={{ background: '#0f172a', padding: '24px', borderRadius: '20px', border: '1px solid #1e293b', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', marginBottom: '12px', fontWeight: 'bold' }}>LLM 1 Context Tokens</div>
+                                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace', marginBottom: '8px' }}>{getTotalTokens(results.llm1?.usage)}</div>
+                                            <div style={{ fontSize: '11px', color: '#475569' }}>Generator Core (GPT-5.4)</div>
+                                        </div>
+                                        <div style={{ background: '#0f172a', padding: '24px', borderRadius: '20px', border: '1px solid #1e293b', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', marginBottom: '12px', fontWeight: 'bold' }}>LLM 2 Logic Tokens</div>
+                                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace', marginBottom: '8px' }}>{getTotalTokens(results.llm2?.usage)}</div>
+                                            <div style={{ fontSize: '11px', color: '#475569' }}>Validator Logic (Claude Sonnet 4.6)</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '24px', borderRadius: '20px', border: '1px solid #6366f1', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#6366f1', marginBottom: '12px', fontWeight: 'bold' }}>Total Pipeline Output</div>
+                                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace', marginBottom: '8px' }}>{getTotalTokens(results.llm1?.usage) + getTotalTokens(results.llm2?.usage)}</div>
+                                            <div style={{ fontSize: '11px', color: '#6366f1' }}>Combined Net Utilization</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e293b', borderRadius: '24px', padding: '40px' }}>
+                                        <h3 style={{ fontSize: '14px', color: '#10b981', margin: '0 0 30px 0', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center' }}>Pipeline Cost Transparency (INR)</h3>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginBottom: '30px' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ paddingBottom: '16px', borderBottom: '1px solid #1e293b', fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Compute Phase</th>
+                                                    <th style={{ paddingBottom: '16px', borderBottom: '1px solid #1e293b', fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Model Interface</th>
+                                                    <th style={{ paddingBottom: '16px', borderBottom: '1px solid #1e293b', fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Tokens (P+C)</th>
+                                                    <th style={{ paddingBottom: '16px', borderBottom: '1px solid #1e293b', fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Financial Impact</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1' }}>Context Generation</td>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1' }}>GPT-5.4 Base</td>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1', fontFamily: 'monospace' }}>{getTotalTokens(results.llm1?.usage)}</td>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1' }}>{formatINR(results.llm1?.usage, 'gpt-5.4')}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1' }}>Academic Verification</td>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1' }}>Claude Sonnet 4.6</td>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1', fontFamily: 'monospace' }}>{getTotalTokens(results.llm2?.usage)}</td>
+                                                    <td style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '14px', color: '#cbd5e1' }}>{formatINR(results.llm2?.usage, 'claude-sonnet-4-6')}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colSpan={3} style={{ paddingTop: '24px', borderTop: '2px solid #1e293b', fontSize: '16px', color: '#10b981', fontWeight: 'bold' }}>Total Estimated Resource Cost</td>
+                                                    <td style={{ paddingTop: '24px', borderTop: '2px solid #1e293b', fontSize: '16px', color: '#10b981', fontWeight: 'bold' }}>₹{(calculateCostRaw(results.llm1?.usage, 'gpt-5.4') + calculateCostRaw(results.llm2?.usage, 'claude-sonnet-4-6')).toFixed(2)}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <div style={{ textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
+                                            Unit Cost per Verified NCERT Question: <span style={{ fontSize: '20px', color: '#fff', fontWeight: 'bold', marginLeft: '10px' }}>₹{((calculateCostRaw(results.llm1?.usage, 'gpt-5.4') + calculateCostRaw(results.llm2?.usage, 'claude-sonnet-4-6')) / 3).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
-
-            <style jsx>{`
-                .chem-builder-workspace {
-                    display: grid;
-                    grid-template-columns: 320px 1fr;
-                    height: 100%;
-                    background: #020617;
-                    border-radius: 24px;
-                    overflow: hidden;
-                }
-
-                .builder-sidebar {
-                    background: rgba(15, 23, 42, 0.4);
-                    border-right: 1px solid rgba(255, 255, 255, 0.05);
-                    padding: 24px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .sidebar-group label {
-                    display: block;
-                    font-size: 10px;
-                    font-weight: 800;
-                    color: #6366f1;
-                    margin-bottom: 8px;
-                    letter-spacing: 1px;
-                }
-
-                .sidebar-group input, .sidebar-group select {
-                    width: 100%;
-                    background: #000;
-                    border: 1px solid #1e293b;
-                    padding: 12px;
-                    border-radius: 10px;
-                    color: #fff;
-                    font-size: 13px;
-                }
-
-                .build-trigger-btn {
-                    margin-top: auto;
-                    background: #6366f1;
-                    color: #fff;
-                    border: none;
-                    padding: 18px;
-                    border-radius: 12px;
-                    font-weight: 800;
-                    cursor: pointer;
-                    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-                }
-
-                .builder-main {
-                    display: flex;
-                    flex-direction: column;
-                    overflow: hidden;
-                }
-
-                .main-header {
-                    padding: 20px 40px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-
-                .main-header h2 { font-size: 18px; font-weight: 800; }
-
-                .sync-btn {
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    font-size: 11px;
-                    font-weight: 800;
-                    cursor: pointer;
-                    border: none;
-                }
-                .sync-btn.idle { background: #10b981; color: #000; }
-                .sync-btn.synced { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981; }
-
-                .main-content {
-                    flex: 1;
-                    overflow-y: auto;
-                    padding: 40px;
-                }
-
-                .questions-stack {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 30px;
-                    max-width: 800px;
-                    margin: 0 auto;
-                }
-
-                .chem-q-card {
-                    background: rgba(255, 255, 255, 0.02);
-                    border: 1px solid rgba(255, 255, 255, 0.05);
-                    border-radius: 20px;
-                    padding: 30px;
-                }
-
-                .q-card-header {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 20px;
-                }
-
-                .lvl-label { font-size: 10px; font-weight: 800; color: #94a3b8; }
-                .verdict-badge { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 99px; }
-                .verdict-badge.verified { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-
-                .q-text { font-size: 16px; font-weight: 500; line-height: 1.6; margin-bottom: 24px; }
-
-                .options-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 12px;
-                    margin-bottom: 24px;
-                }
-
-                .opt-item {
-                    display: flex;
-                    gap: 12px;
-                    background: rgba(0,0,0,0.3);
-                    padding: 16px;
-                    border-radius: 12px;
-                    border: 1px solid rgba(255, 255, 255, 0.05);
-                }
-                .opt-item.correct { border-color: #10b981; background: rgba(16, 185, 129, 0.05); }
-
-                .opt-key {
-                    background: rgba(255, 255, 255, 0.1);
-                    width: 24px;
-                    height: 24px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    font-weight: 800;
-                }
-                .correct .opt-key { background: #10b981; color: #000; }
-
-                .q-meta { font-size: 12px; font-weight: 800; color: #94a3b8; margin-bottom: 20px; }
-                .correct-val { color: #10b981; margin-left: 10px; }
-
-                .q-solution label { display: block; font-size: 10px; font-weight: 800; color: #10b981; margin-bottom: 10px; }
-                .sol-text { font-size: 14px; color: #64748b; line-height: 1.6; }
-
-                .chem-terminal {
-                    background: #000;
-                    border-radius: 12px;
-                    border: 1px solid #1e293b;
-                    overflow: hidden;
-                    font-family: monospace;
-                    margin-top: 10px;
-                }
-                .terminal-top { background: #1e293b; padding: 8px 12px; display: flex; align-items: center; gap: 6px; }
-                .dot { width: 8px; height: 8px; border-radius: 50%; }
-                .dot.r { background: #ff5f56; }
-                .dot.y { background: #ffbd2e; }
-                .dot.g { background: #27c93f; }
-                .t-label { font-size: 9px; color: #94a3b8; margin-left: 10px; font-weight: 700; }
-                .terminal-cnt { padding: 15px; height: 150px; overflow-y: auto; font-size: 11px; color: #10b981; }
-                .terminal-cnt pre { white-space: pre-wrap; }
-
-                .chem-spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid rgba(99, 102, 241, 0.2);
-                    border-top-color: #6366f1;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin-bottom: 20px;
-                }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                .build-loading { text-align: center; margin-top: 100px; }
-                .build-loading p { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
-                .build-loading span { font-size: 13px; color: #64748b; }
-                
-                .idle-state { text-align: center; margin-top: 100px; opacity: 0.3; }
-            `}</style>
         </div>
     );
 }
