@@ -365,7 +365,7 @@ export default function PhysicsPipeline() {
 function ExtractionPipeline() {
     const [file, setFile] = useState<File | null>(null);
     const [bookId, setBookId] = useState<string | null>(null);
-    const [chapterName, setChapterName] = useState('Uncategorized');
+    const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
     const [bookPages, setBookPages] = useState<any[]>([]);
     const [currentBookPageIndex, setCurrentBookPageIndex] = useState(0);
 
@@ -639,16 +639,22 @@ function ExtractionPipeline() {
                                         <input className="edit-input" placeholder="e.g. Physics Vol 1" value={bookId} readOnly />
                                     </div>
                                     <div className="editor-group" style={{ margin: 0 }}>
-                                        <label className="editor-label">Chapter</label>
-                                        <select
-                                            className="edit-input"
-                                            value={chapterName}
-                                            onChange={e => setChapterName(e.target.value)}
-                                            style={{ padding: '8px', borderRadius: '4px', background: '#1a1a1a', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', width: '100%' }}
-                                        >
-                                            <option value="" disabled>-- Select Physics Taxonomy --</option>
-                                            {taxonomyChapters.map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
+                                        <label className="editor-label">Taxonomy Chapter(s)</label>
+                                        <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                            {taxonomyChapters.map(c => (
+                                                <label key={c} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', padding: '2px 4px', borderRadius: '2px', background: selectedChapters.includes(c) ? 'rgba(16, 185, 129, 0.1)' : 'transparent' }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedChapters.includes(c)} 
+                                                        onChange={e => {
+                                                            if (e.target.checked) setSelectedChapters([...selectedChapters, c]);
+                                                            else setSelectedChapters(selectedChapters.filter(x => x !== c));
+                                                        }}
+                                                    />
+                                                    {c}
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                                 <p style={{ color: 'var(--text-light)', marginBottom: '20px', marginTop: '20px' }}>
@@ -668,7 +674,7 @@ function ExtractionPipeline() {
                                                 index={idx}
                                                 jobId={currentJobId!}
                                                 bookName={bookId}
-                                                chapterName={chapterName}
+                                                chapterName={selectedChapters.length > 0 ? selectedChapters.join(', ') : 'Uncategorized'}
                                                 pageName={currentPage?.name || ''}
                                                 onVerify={() => handleVerifySuccess(idx)}
                                             />

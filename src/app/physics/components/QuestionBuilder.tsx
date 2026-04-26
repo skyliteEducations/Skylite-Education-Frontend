@@ -83,6 +83,8 @@ export default function QuestionBuilder() {
     // Active View Mode (Tabs)
     const [viewMode, setViewMode] = useState<'edit' | 'llm1' | 'llm2' | 'llm3' | 'taxonomy' | 'performance'>('edit');
     const [jobTokens, setJobTokens] = useState<any>(null);
+    const [selectedTaxonomies, setSelectedTaxonomies] = useState<string[]>([]);
+    const [isMultiTaxonomy, setIsMultiTaxonomy] = useState(false);
     
     const pollingInterval = useRef<any>(null);
 
@@ -167,6 +169,12 @@ export default function QuestionBuilder() {
     };
 
     const startBuild = async (qIndex: number) => {
+        const question = verifiedQuestions.find(q => (q.question_index !== undefined ? q.question_index : verifiedQuestions.indexOf(q)) === qIndex);
+        if (!question) {
+            alert("Question not found in local state.");
+            return;
+        }
+
         setActiveQIndex(qIndex);
         setJobStatus('starting');
         setJobMessage('Initiating 3-LLM physics pipeline...');
@@ -176,13 +184,29 @@ export default function QuestionBuilder() {
         setViewMode('edit');
         
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/physics/pipeline/build/${bookName}/${chapterName}/${pageName}/${qIndex}`, {
-                method: 'POST'
+            // Prepare the generation payload
+            const payload = {
+                questions: [{
+                    ...question,
+                    book_name: bookName,
+                    chapter_name: chapterName,
+                    page_name: pageName,
+                    taxonomy_names: isMultiTaxonomy ? selectedTaxonomies : [chapterName]
+                }]
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/v1/physics/pipeline/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.job_id) {
                 setActiveJobId(data.job_id);
                 pollJob(data.job_id, qIndex);
+            } else {
+                setJobStatus('error');
+                setJobMessage(data.detail || 'Failed to start pipeline');
             }
         } catch (e) {
             setJobStatus('error');
@@ -433,6 +457,42 @@ export default function QuestionBuilder() {
                                 <option value="" style={{ background: '#1a1a1a', color: '#fff' }}>-- Select Page --</option>
                                 {pageList.map(p => <option key={p} value={p} style={{ background: '#1a1a1a', color: '#fff' }}>{p}</option>)}
                             </select>
+                        </div>
+
+                        {/* Multi-Taxonomy Selection */}
+                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <label className="editor-label" style={{ margin: 0 }}>Generation Taxonomy</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '11px', color: isMultiTaxonomy ? 'var(--primary)' : 'var(--text-light)' }}>Multi</span>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isMultiTaxonomy} 
+                                        onChange={e => setIsMultiTaxonomy(e.target.checked)}
+                                        style={{ cursor: 'pointer' }}
+                                    />
+                                </div>
+                            </div>
+                            
+                            {isMultiTaxonomy ? (
+                                <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                                    {chapterList.map(c => (
+                                        <label key={c} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', padding: '2px 4px', borderRadius: '2px', background: selectedTaxonomies.includes(c) ? 'rgba(16, 185, 129, 0.1)' : 'transparent' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedTaxonomies.includes(c)} 
+                                                onChange={e => {
+                                                    if (e.target.checked) setSelectedTaxonomies([...selectedTaxonomies, c]);
+                                                    else setSelectedTaxonomies(selectedTaxonomies.filter(x => x !== c));
+                                                }}
+                                            />
+                                            {c}
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p style={{ fontSize: '12px', color: 'var(--text-light)', opacity: 0.6 }}>Using default chapter: <span style={{ color: 'var(--primary)' }}>{chapterName || 'None'}</span></p>
+                            )}
                         </div>
                         <button className="action-btn" onClick={fetchVerified} style={{ background: 'var(--primary)', color: '#000', fontWeight: 'bold' }} disabled={!pageName}>
                             {loadingQs ? 'Fetching...' : 'Fetch Verified Questions'}
