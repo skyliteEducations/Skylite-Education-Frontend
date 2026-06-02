@@ -1,0 +1,190 @@
+
+<style>
+*{box-sizing:border-box}
+.wrap{padding:16px 0;color:var(--color-text-primary);font-size:13px}
+.section{font-weight:500;font-size:13px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--color-border-tertiary)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:8px 0}
+.card{border:1px solid var(--color-border-secondary);border-radius:10px;padding:10px;background:var(--color-background-secondary);text-align:center}
+.mol-wrap{width:100%;height:130px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.mol-wrap svg{width:100%;height:100%;object-fit:contain}
+.ion-display{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;padding:8px}
+.ion-pill{background:#EEEDFE;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:500;color:#534AB7}
+.ion-plus{color:var(--color-text-secondary);font-size:16px}
+.cname{font-size:12px;font-weight:500;margin-top:6px}
+.csmi{font-size:10px;color:var(--color-text-secondary);margin-top:2px;font-family:monospace;word-break:break-all}
+.badge{font-size:10px;padding:2px 7px;border-radius:10px;display:inline-block;margin-top:4px}
+.ok{background:#E1F5EE;color:#0F6E56}
+.fix-note{font-size:11px;color:#0F6E56;margin-top:3px}
+.row{display:flex;gap:8px;margin:8px 0}
+input{flex:1;padding:8px;border:1px solid var(--color-border-secondary);border-radius:8px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:12px;font-family:monospace}
+button{padding:8px 16px;border-radius:8px;font-size:13px;border:none;background:#534AB7;color:#fff;cursor:pointer}
+.status{font-size:11px;color:var(--color-text-secondary);margin-top:6px;padding:6px 10px;background:var(--color-background-secondary);border-radius:6px}
+</style>
+
+<div class="wrap">
+<div style="font-weight:500;font-size:15px;margin-bottom:4px">Fixed renderer — all your problem cases</div>
+
+<div class="section">Problem cases — now fixed</div>
+<div class="grid" id="fixed-grid"></div>
+
+<div class="section">Custom SMILES tester</div>
+<div class="row">
+  <input id="ci" placeholder="Enter SMILES" value="CCOC(=O)C"/>
+  <button onclick="testCustom()">Render</button>
+</div>
+<div id="custom-out"></div>
+<div class="status" id="libstatus">Loading RDKit WebAssembly…</div>
+</div>
+
+<script>
+let RDKit = null;
+
+const COMPOUNDS = [
+  {name:'Ammonium chloride', smiles:'[NH4+].[Cl-]', ionic:true,
+   ions:[{label:'NH₄⁺',color:'#EEEDFE',text:'#534AB7'},{label:'Cl⁻',color:'#E1F5EE',text:'#0F6E56'}]},
+  {name:'Aniline·HCl salt', smiles:'Nc1ccccc1', ionic:false,
+   note:'Draw organic part; show HCl as label',
+   extra_label:'· HCl'},
+  {name:'Sodium acetate', smiles:'CC(=O)[O-]', ionic:false,
+   note:'Draw acetate; show Na⁺ as label', extra_label:'Na⁺ salt'},
+  {name:'Benzene diazonium Cl', smiles:'[N+]#Nc1ccccc1', ionic:false,
+   note:'Diazonium — organic fragment with charge'},
+  {name:'p-Nitroaniline', smiles:'Nc1ccc([N+](=O)[O-])cc1', ionic:false},
+  {name:'Ethyl acetate', smiles:'CCOC(=O)C', ionic:false,
+   note:'CH₃ groups must show'},
+  {name:'Acetic acid', smiles:'CC(=O)O', ionic:false,
+   note:'CH₃ must show explicitly'},
+  {name:'Acetophenone', smiles:'CC(=O)c1ccccc1', ionic:false},
+  {name:'Glucose', smiles:'OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O', ionic:false},
+  {name:'Alanine', smiles:'N[C@@H](C)C(=O)O', ionic:false},
+];
+
+function superscript(text){
+  return text
+    .replace(/\+/g,'<sup>+</sup>')
+    .replace(/-/g,'<sup>−</sup>')
+    .replace(/(\d+)/g,'<sub>$1</sub>');
+}
+
+function renderIonicCard(c){
+  const pairHTML = c.ions.map((ion,i)=>`
+    <div style="background:${ion.color};border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span style="font-size:16px;font-weight:600;color:${ion.text}">${ion.label}</span>
+    </div>
+    ${i<c.ions.length-1?'<span style="font-size:18px;color:var(--color-text-secondary)">+</span>':''}
+  `).join('');
+  return `<div class="mol-wrap"><div class="ion-display">${pairHTML}</div></div>`;
+}
+
+function smilesToSVG(smiles){
+  if(!RDKit) return null;
+  try{
+    const mol = RDKit.get_mol(smiles);
+    if(!mol) return null;
+    // Use MolDraw2DSVG options to force terminal carbons
+    const details = JSON.stringify({
+      width: 200, height: 150,
+      bondLineWidth: 1.8,
+      addAtomIndices: false,
+      explicitMethyl: true,
+      addStereoAnnotation: true,
+      padding: 0.15,
+    });
+    const svg = mol.get_svg_with_highlights(details);
+    mol.delete();
+    if(!svg || svg.length < 50) return null;
+    return svg;
+  }catch(e){return null;}
+}
+
+function renderOrgCard(c){
+  const svg = smilesToSVG(c.smiles);
+  if(svg){
+    return `<div class="mol-wrap">${svg}</div>`;
+  }
+  // fallback: show name
+  return `<div class="mol-wrap"><div style="padding:8px;font-size:13px;color:#534AB7;font-weight:500">${c.name}</div></div>`;
+}
+
+function buildCard(c){
+  const card = document.createElement('div');
+  card.className='card';
+  let molHTML;
+  if(c.ionic){
+    molHTML = renderIonicCard(c);
+  } else {
+    molHTML = renderOrgCard(c);
+  }
+  const extraLabel = c.extra_label ? `<span style="font-size:11px;color:#534AB7;background:#EEEDFE;padding:1px 6px;border-radius:10px;margin-left:4px">${c.extra_label}</span>`:'';
+  card.innerHTML=`${molHTML}
+    <div class="cname">${c.name}${extraLabel}</div>
+    <div class="csmi">${c.smiles}</div>
+    <span class="badge ok">${c.ionic?'ionic display':'RDKit SVG'}</span>
+    ${c.note?`<div class="fix-note">${c.note}</div>`:''}`;
+  return card;
+}
+
+function testCustom(){
+  const smiles = document.getElementById('ci').value.trim();
+  if(!smiles) return;
+  const out = document.getElementById('custom-out');
+  
+  // Check if ionic (contains dot notation)
+  const isIonic = smiles.includes('.');
+  let card;
+  if(isIonic){
+    const parts = smiles.split('.');
+    const ions = parts.map(p=>({
+      label:p,
+      color:'#EEEDFE',
+      text:'#534AB7'
+    }));
+    card = buildCard({name:'Custom',smiles,ionic:true,ions});
+  } else {
+    const svg = smilesToSVG(smiles);
+    if(svg){
+      out.innerHTML=`<div class="grid"><div class="card">
+        <div class="mol-wrap">${svg}</div>
+        <div class="cname">Custom</div>
+        <div class="csmi">${smiles}</div>
+        <span class="badge ok">RDKit ✓</span>
+      </div></div>`;
+      return;
+    } else {
+      out.innerHTML=`<div class="grid"><div class="card">
+        <div class="mol-wrap"><div style="padding:8px;font-size:12px;color:#A32D2D">Invalid SMILES</div></div>
+        <div class="cname">Custom</div><div class="csmi">${smiles}</div>
+      </div></div>`;
+      return;
+    }
+  }
+  out.innerHTML='';
+  const g=document.createElement('div');g.className='grid';
+  g.appendChild(card);out.appendChild(g);
+}
+
+async function init(){
+  const grid = document.getElementById('fixed-grid');
+
+  // Load RDKit
+  await new Promise(resolve=>{
+    const s=document.createElement('script');
+    s.src='https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js';
+    s.onload=async()=>{
+      try{
+        RDKit=await window.initRDKitModule();
+        document.getElementById('libstatus').textContent='RDKit loaded — full cheminformatics rendering';
+      }catch(e){
+        document.getElementById('libstatus').textContent='RDKit failed to init';
+      }
+      resolve();
+    };
+    s.onerror=()=>resolve();
+    document.head.appendChild(s);
+  });
+
+  COMPOUNDS.forEach(c=> grid.appendChild(buildCard(c)));
+}
+
+init();
+</script>

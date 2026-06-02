@@ -27,24 +27,24 @@ export default function ChemistrySelection() {
                     </Link>
 
                     {/* ORGANIC CHEMISTRY */}
-                    <div className="selection-card organic disabled">
+                    <Link href="/chemistry/organic" className="selection-card organic">
                         <div className="card-icon">🧬</div>
                         <div className="card-content">
                             <h3>Organic Chemistry</h3>
                             <p>Reaction mechanisms, hydrocarbons, and functional groups.</p>
-                            <span className="status-label pending">COMING SOON</span>
+                            <span className="status-label live">LIVE PIPELINE</span>
                         </div>
-                    </div>
+                    </Link>
 
                     {/* PHYSICAL CHEMISTRY */}
-                    <div className="selection-card physical disabled">
+                    <Link href="/chemistry/physical" className="selection-card physical">
                         <div className="card-icon">⚡</div>
                         <div className="card-content">
                             <h3>Physical Chemistry</h3>
                             <p>Thermodynamics, kinetics, and equilibrium states.</p>
-                            <span className="status-label pending">COMING SOON</span>
+                            <span className="status-label live">LIVE PIPELINE</span>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
 
