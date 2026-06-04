@@ -122,14 +122,14 @@ export default function TestGenerationPage() {
         width: '420px',
         minWidth: '420px',
         height: '100%',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid #e5e7eb',
+        backgroundColor: '#090d16',
+        borderRight: '1px solid #1e293b',
         padding: '48px 32px',
         display: 'flex',
         flexDirection: 'column' as const,
         gap: '36px',
         overflowY: 'auto' as const,
-        boxShadow: '4px 0 24px rgba(0,0,0,0.02)'
+        boxShadow: '4px 0 24px rgba(0,0,0,0.2)'
     };
 
     const rightPanelStyle = {
@@ -144,7 +144,7 @@ export default function TestGenerationPage() {
     const headingStyle = {
         fontSize: '40px',
         fontWeight: 900, // Extra bold as requested
-        color: '#111827',
+        color: '#ffffff',
         letterSpacing: '-0.03em',
         lineHeight: 1.1,
         marginBottom: '12px'
@@ -152,7 +152,7 @@ export default function TestGenerationPage() {
 
     const subHeadingStyle = {
         fontSize: '15px',
-        color: '#6b7280',
+        color: '#94a3b8',
         lineHeight: 1.5,
         fontWeight: 400
     };
@@ -160,7 +160,7 @@ export default function TestGenerationPage() {
     const sectionTitleStyle = {
         fontSize: '13px',
         fontWeight: 700,
-        color: '#4b5563',
+        color: '#cbd5e1',
         textTransform: 'uppercase' as const,
         letterSpacing: '0.08em',
         marginBottom: '16px',
@@ -172,9 +172,9 @@ export default function TestGenerationPage() {
     const btnStyle = (active: boolean) => ({
         padding: '14px 18px',
         borderRadius: '12px',
-        border: `1px solid ${active ? '#10b981' : '#e5e7eb'}`,
-        backgroundColor: active ? '#ecfdf5' : '#ffffff',
-        color: active ? '#047857' : '#374151',
+        border: `1px solid ${active ? '#10b981' : '#1e293b'}`,
+        backgroundColor: active ? 'rgba(16, 185, 129, 0.12)' : '#111827',
+        color: active ? '#34d399' : '#cbd5e1',
         fontSize: '15px',
         fontWeight: 600,
         cursor: 'pointer',
@@ -183,7 +183,7 @@ export default function TestGenerationPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between' as const,
-        boxShadow: active ? '0 0 0 1px #10b981, 0 4px 6px -1px rgba(16,185,129,0.1)' : '0 1px 2px rgba(0,0,0,0.02)',
+        boxShadow: active ? '0 0 12px rgba(16,185,129,0.15)' : 'none',
         width: '100%'
     });
 
@@ -208,7 +208,7 @@ export default function TestGenerationPage() {
                 {/* Step 1: Subject */}
                 <div>
                     <h2 style={sectionTitleStyle}>
-                        <span style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '6px', color: '#374151' }}>1</span>
+                        <span style={{ background: '#1e293b', padding: '4px 8px', borderRadius: '6px', color: '#34d399' }}>1</span>
                         Select Subject
                     </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -219,10 +219,16 @@ export default function TestGenerationPage() {
                                 onClick={() => fetchChapters(subj)}
                                 style={btnStyle(selectedSubject === subj)}
                                 onMouseEnter={(e) => {
-                                    if (selectedSubject !== subj) e.currentTarget.style.backgroundColor = '#f9fafb';
+                                    if (selectedSubject !== subj) {
+                                        e.currentTarget.style.backgroundColor = '#1f2937';
+                                        e.currentTarget.style.color = '#ffffff';
+                                    }
                                 }}
                                 onMouseLeave={(e) => {
-                                    if (selectedSubject !== subj) e.currentTarget.style.backgroundColor = '#ffffff';
+                                    if (selectedSubject !== subj) {
+                                        e.currentTarget.style.backgroundColor = '#111827';
+                                        e.currentTarget.style.color = '#cbd5e1';
+                                    }
                                 }}
                             >
                                 {subj}
@@ -236,12 +242,12 @@ export default function TestGenerationPage() {
                 {selectedSubject && (
                     <div style={{ animation: 'slideIn 0.3s ease-out' }}>
                         <h2 style={sectionTitleStyle}>
-                            <span style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '6px', color: '#374151' }}>2</span>
+                            <span style={{ background: '#1e293b', padding: '4px 8px', borderRadius: '6px', color: '#34d399' }}>2</span>
                             Select Chapter
                         </h2>
                         {chapters.length === 0 ? (
-                            <div style={{ padding: '24px', textAlign: 'center', background: '#f9fafb', borderRadius: '12px', border: '1px dashed #d1d5db' }}>
-                                <p style={{ color: '#6b7280', fontSize: '14px', fontWeight: 500 }}>No chapters available for {selectedSubject}.</p>
+                            <div style={{ padding: '24px', textAlign: 'center', background: '#111827', borderRadius: '12px', border: '1px dashed #1e293b' }}>
+                                <p style={{ color: '#94a3b8', fontSize: '14px', fontWeight: 500 }}>No chapters available for {selectedSubject}.</p>
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -249,16 +255,22 @@ export default function TestGenerationPage() {
                                     <button
                                         key={chap}
                                         onClick={() => handleChapterSelect(chap)}
-                                        style={btnStyle(selectedChapter === chap && !isGenerating && !pdfUrl)}
+                                        style={btnStyle(selectedChapter === chap)}
                                         onMouseEnter={(e) => {
-                                            if (selectedChapter !== chap) e.currentTarget.style.backgroundColor = '#f9fafb';
+                                            if (selectedChapter !== chap) {
+                                                e.currentTarget.style.backgroundColor = '#1f2937';
+                                                e.currentTarget.style.color = '#ffffff';
+                                            }
                                         }}
                                         onMouseLeave={(e) => {
-                                            if (selectedChapter !== chap) e.currentTarget.style.backgroundColor = '#ffffff';
+                                            if (selectedChapter !== chap) {
+                                                e.currentTarget.style.backgroundColor = '#111827';
+                                                e.currentTarget.style.color = '#cbd5e1';
+                                            }
                                         }}
                                     >
                                         <span>{chap}</span>
-                                        <span style={{ color: '#9ca3af', fontSize: '18px' }}>→</span>
+                                        <span style={{ color: selectedChapter === chap ? '#34d399' : '#cbd5e1', fontSize: '18px' }}>→</span>
                                     </button>
                                 ))}
                             </div>
@@ -289,32 +301,161 @@ export default function TestGenerationPage() {
                 )}
 
                 {isGenerating && (
-                    <div style={{ margin: 'auto', width: '100%', maxWidth: '560px', padding: '48px', backgroundColor: '#ffffff', borderRadius: '24px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', animation: 'scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-                        <div style={{ position: 'relative', width: '80px', height: '80px', marginBottom: '32px' }}>
-                            <svg className="animate-spin" viewBox="0 0 100 100" style={{ width: '100%', height: '100%', animation: 'spin 1.5s linear infinite' }}>
-                                <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                                <circle cx="50" cy="50" r="45" fill="none" stroke="#10b981" strokeWidth="8" strokeDasharray="283" strokeDashoffset="75" strokeLinecap="round" />
-                            </svg>
-                        </div>
-                        <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#111827', marginBottom: '12px' }}>
-                            Synthesizing Test
-                        </h3>
-                        <p style={{ fontSize: '15px', color: '#6b7280', marginBottom: '32px', minHeight: '22px', fontWeight: 500 }}>
-                            {generatingText}
-                        </p>
+                    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         
-                        <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                            <div style={{ 
-                                height: '100%', 
-                                width: `${progress}%`, 
-                                backgroundColor: '#10b981', 
-                                transition: 'width 0.1s linear',
-                                borderRadius: '4px'
-                            }}></div>
+                        {/* Full Area 3D Scanning Scene */}
+                        <div className="scene-3d" style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            overflow: 'hidden',
+                            pointerEvents: 'none',
+                            perspective: '1200px',
+                            zIndex: 1
+                        }}>
+                            {/* Floating Sheet 1 (Left Area) */}
+                            <div style={{
+                                position: 'absolute',
+                                width: '260px',
+                                height: '340px',
+                                left: '8%',
+                                top: '15%',
+                                background: 'rgba(255, 255, 255, 0.75)',
+                                backdropFilter: 'blur(6px)',
+                                border: '1px solid rgba(16, 185, 129, 0.15)',
+                                borderRadius: '16px',
+                                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.05)',
+                                transformStyle: 'preserve-3d',
+                                transform: 'rotateX(38deg) rotateY(12deg) rotateZ(-12deg)',
+                                animation: 'floatLeft 8s ease-in-out infinite',
+                                overflow: 'hidden'
+                            }}>
+                                {/* Grid Pattern */}
+                                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'linear-gradient(rgba(16, 185, 129, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.04) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                                {/* Laser Scanner Line */}
+                                <div className="laser-scanner" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(to right, transparent, #10b981, transparent)', boxShadow: '0 0 10px #10b981', animation: 'scan 4.5s linear infinite', zIndex: 10 }} />
+                                {/* Skeleton content */}
+                                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', opacity: 0.6 }}>
+                                    <div style={{ height: '14px', width: '50%', background: '#10b981', borderRadius: '3px' }} />
+                                    <div style={{ height: '8px', width: '90%', background: '#94a3b8', borderRadius: '2px' }} />
+                                    <div style={{ height: '8px', width: '80%', background: '#94a3b8', borderRadius: '2px' }} />
+                                    <div style={{ height: '8px', width: '85%', background: '#94a3b8', borderRadius: '2px' }} />
+                                    <div style={{ height: '50px', background: 'rgba(16,185,129,0.05)', border: '1px dashed rgba(16,185,129,0.1)', borderRadius: '6px', marginTop: '12px' }} />
+                                </div>
+                            </div>
+
+                            {/* Floating Sheet 2 (Right-Bottom Area) */}
+                            <div style={{
+                                position: 'absolute',
+                                width: '280px',
+                                height: '360px',
+                                right: '6%',
+                                bottom: '10%',
+                                background: 'rgba(255, 255, 255, 0.75)',
+                                backdropFilter: 'blur(6px)',
+                                border: '1px solid rgba(0, 0, 0, 0.05)',
+                                borderRadius: '16px',
+                                boxShadow: '0 25px 45px rgba(0, 0, 0, 0.05)',
+                                transformStyle: 'preserve-3d',
+                                transform: 'rotateX(30deg) rotateY(-15deg) rotateZ(8deg)',
+                                animation: 'floatRight 10s ease-in-out infinite',
+                                overflow: 'hidden'
+                            }}>
+                                {/* Laser Scanner Line */}
+                                <div className="laser-scanner" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(to right, transparent, #10b981, transparent)', boxShadow: '0 0 10px #10b981', animation: 'scan 5.5s linear infinite', zIndex: 10 }} />
+                                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', opacity: 0.6 }}>
+                                    <div style={{ height: '14px', width: '40%', background: '#4b5563', borderRadius: '3px' }} />
+                                    <div style={{ height: '8px', width: '85%', background: '#94a3b8', borderRadius: '2px' }} />
+                                    <div style={{ height: '8px', width: '70%', background: '#94a3b8', borderRadius: '2px' }} />
+                                    {/* Schematic representation */}
+                                    <div style={{ height: '80px', border: '1px solid #e5e7eb', borderRadius: '8px', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="40" height="40" viewBox="0 0 100 100" fill="none" stroke="#10b981" strokeWidth="2">
+                                            <polygon points="50,15 90,85 10,85" strokeDasharray="3" />
+                                            <circle cx="50" cy="55" r="20" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Floating Sheet 3 (Top-Right Area) */}
+                            <div style={{
+                                position: 'absolute',
+                                width: '220px',
+                                height: '200px',
+                                right: '12%',
+                                top: '8%',
+                                background: 'rgba(255, 255, 255, 0.7)',
+                                backdropFilter: 'blur(5px)',
+                                border: '1px solid rgba(16, 185, 129, 0.1)',
+                                borderRadius: '16px',
+                                boxShadow: '0 15px 30px rgba(0, 0, 0, 0.04)',
+                                transformStyle: 'preserve-3d',
+                                transform: 'rotateX(45deg) rotateY(8deg) rotateZ(-6deg)',
+                                animation: 'floatTopRight 7s ease-in-out infinite',
+                                overflow: 'hidden'
+                            }}>
+                                {/* Laser Scanner Line */}
+                                <div className="laser-scanner" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(to right, transparent, #10b981, transparent)', boxShadow: '0 0 10px #10b981', animation: 'scan 3.8s linear infinite', zIndex: 10 }} />
+                                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px', opacity: 0.7 }}>
+                                    <div style={{ height: '12px', width: '60%', background: '#10b981', borderRadius: '3px' }} />
+                                    <div style={{ height: '30px', background: 'rgba(16,185,129,0.03)', border: '1px dashed rgba(16,185,129,0.15)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'monospace' }}>∑ (x_i - μ)² / N</span>
+                                    </div>
+                                    <div style={{ height: '8px', width: '85%', background: '#94a3b8', borderRadius: '2px', marginTop: '6px' }} />
+                                    <div style={{ height: '8px', width: '50%', background: '#94a3b8', borderRadius: '2px' }} />
+                                </div>
+                            </div>
+
+                            {/* Floating Math Symbols */}
+                            <div className="math-symbol" style={{ position: 'absolute', left: '15%', bottom: '20%', fontSize: '28px', color: 'rgba(16,185,129,0.12)', fontWeight: 'bold', fontFamily: 'serif', transform: 'rotateZ(-15deg)', animation: 'floatSymbol 5s ease-in-out infinite' }}>∫ f(x) dx</div>
+                            <div className="math-symbol" style={{ position: 'absolute', left: '42%', top: '10%', fontSize: '32px', color: 'rgba(16,185,129,0.1)', fontWeight: 'bold', fontFamily: 'serif', transform: 'rotateZ(10deg)', animation: 'floatSymbol 6s ease-in-out infinite 1s' }}>dy/dx</div>
+                            <div className="math-symbol" style={{ position: 'absolute', right: '40%', bottom: '15%', fontSize: '36px', color: 'rgba(16,185,129,0.08)', fontWeight: 'bold', fontFamily: 'serif', transform: 'rotateZ(-5deg)', animation: 'floatSymbol 7s ease-in-out infinite 2s' }}>E = mc²</div>
                         </div>
-                        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#9ca3af' }}>PROGRESS</span>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{progress}%</span>
+
+                        {/* Foreground Glass Card (Light-themed glassmorphism) */}
+                        <div style={{ 
+                            position: 'relative', 
+                            zIndex: 2, 
+                            width: '100%', 
+                            maxWidth: '520px', 
+                            padding: '48px', 
+                            backgroundColor: 'rgba(255, 255, 255, 0.7)', 
+                            backdropFilter: 'blur(20px)',
+                            WebkitBackdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(0, 0, 0, 0.08)',
+                            borderRadius: '24px', 
+                            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.06)', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            textAlign: 'center', 
+                            animation: 'scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' 
+                        }}>
+                            <div style={{ position: 'relative', width: '80px', height: '80px', marginBottom: '32px' }}>
+                                <svg className="animate-spin" viewBox="0 0 100 100" style={{ width: '100%', height: '100%', animation: 'spin 1.5s linear infinite' }}>
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="8" />
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="#10b981" strokeWidth="8" strokeDasharray="283" strokeDashoffset="75" strokeLinecap="round" />
+                                </svg>
+                            </div>
+                            <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#111827', marginBottom: '12px' }}>
+                                Synthesizing Test
+                            </h3>
+                            <p style={{ fontSize: '15px', color: '#4b5563', marginBottom: '32px', minHeight: '22px', fontWeight: 500 }}>
+                                {generatingText}
+                            </p>
+                            
+                            <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                                <div style={{ 
+                                    height: '100%', 
+                                    width: `${progress}%`, 
+                                    backgroundColor: '#10b981', 
+                                    transition: 'width 0.1s linear',
+                                    borderRadius: '4px'
+                                }}></div>
+                            </div>
+                            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#6b7280' }}>PROGRESS</span>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{progress}%</span>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -378,6 +519,31 @@ export default function TestGenerationPage() {
                 @keyframes scaleUp {
                     from { opacity: 0; transform: scale(0.95); }
                     to { opacity: 1; transform: scale(1); }
+                }
+                @keyframes floatLeft {
+                    0% { transform: rotateX(38deg) rotateY(12deg) rotateZ(-12deg) translateY(0px) translateZ(0px); }
+                    50% { transform: rotateX(40deg) rotateY(10deg) rotateZ(-10deg) translateY(-15px) translateZ(25px); }
+                    100% { transform: rotateX(38deg) rotateY(12deg) rotateZ(-12deg) translateY(0px) translateZ(0px); }
+                }
+                @keyframes floatRight {
+                    0% { transform: rotateX(30deg) rotateY(-15deg) rotateZ(8deg) translateY(0px) translateZ(0px); }
+                    50% { transform: rotateX(32deg) rotateY(-13deg) rotateZ(10deg) translateY(15px) translateZ(35px); }
+                    100% { transform: rotateX(30deg) rotateY(-15deg) rotateZ(8deg) translateY(0px) translateZ(0px); }
+                }
+                @keyframes floatTopRight {
+                    0% { transform: rotateX(45deg) rotateY(8deg) rotateZ(-6deg) translateY(0px) translateZ(0px); }
+                    50% { transform: rotateX(43deg) rotateY(6deg) rotateZ(-8deg) translateY(-12px) translateZ(-15px); }
+                    100% { transform: rotateX(45deg) rotateY(8deg) rotateZ(-6deg) translateY(0px) translateZ(0px); }
+                }
+                @keyframes floatSymbol {
+                    0% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+                    50% { transform: translateY(-10px) rotate(5deg); opacity: 1; }
+                    100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+                }
+                @keyframes scan {
+                    0% { top: 0%; }
+                    50% { top: 100%; }
+                    100% { top: 0%; }
                 }
                 body {
                     background-color: #ffffff !important;
